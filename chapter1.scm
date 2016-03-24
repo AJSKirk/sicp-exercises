@@ -59,4 +59,29 @@
     (curt-iter (cube-improve guess x)
                x)))
 
+#; 1.10 -- Computing Ackermann's function
 
+(define (A x y)
+  (cond ((= y 0) 0)
+        ((= x 0) (* 2 y))
+        ((= y 1) 2)
+        (else (A (- x 1)
+                 (A x (- y 1))))))
+
+(A 1 10)
+(A 2 4)
+(A 3 3)
+
+#; 1.10 -- Recursive vs Iterative Processes
+
+(define (f-recurs n)
+  (if (< n 3)
+    n
+    (+ (f (- n 1)) (* 2 (f (- n 2))) (* 3 (f (- n 3))))))
+
+#; Note the massive duplictation of work
+
+(define (f n)
+  (if (< n 3)
+    n
+    (f-iter 3 2 1 (- n 3))))
