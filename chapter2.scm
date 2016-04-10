@@ -324,3 +324,198 @@
     l
     (append (reverse (cdr l)) (list (car l)))))
 
+; 2.19 -- Multi-currency coin-changer
+; Orig
+
+(define (count-change amount)
+  (cc amount 5))
+
+(define (cc amount kinds-of-coins)
+  (cond ((= amount 0) 1 )
+        ((or (< amount 0) (= kinds-of-coins 0)) 0)
+        (else (+ (cc amount
+                     (- kinds-of-coins 1))
+                 (cc (- amount
+                        (first-denomination kinds-of-coins))
+                     kinds-of-coins)))))
+
+(define (first-denomination kinds-of-coins)
+  (cond ((= kinds-of-coins 1) 1)
+        ((= kinds-of-coins 2) 5)
+        ((= kinds-of-coins 3) 10)
+        ((= kinds-of-coins 4) 25)
+        ((= kinds-of-coins 5) 50)))
+
+; New, listised version
+
+(define us-coins (list 50 25 10 5 1))
+(define uk-coins (list 100 50 20 10 5 2 1 .5))
+
+; Stub
+; (cc 100 us-coins) -> 292
+
+(define (cc amount coin-values)
+  (cond ((= amount 0) 1)
+        ((or (< amount 0) (no-more? coin-values)) 0)
+        (else
+          (+ (cc amount
+                 (except-first-denomination coin-values))
+             (cc (- amount
+                    (first-denomination coin-values))
+                 coin-values)))))
+
+(define first-denomination car)
+(define except-first-denomination cdr)
+(define no-more? null?)
+
+; 2.20 -- Dotted tail notation
+
+(define (same-parity x . y)
+  (define (parity-helper y)
+    (if (null? y)
+      nil
+      (if (= (remainder x 2) (remainder (car y) 2))
+        (cons (car y) (parity-helper (cdr y)))
+        (parity-helper (cdr y)))))
+  (cons x (parity-helper y)))
+
+; 2.21 -- Mapping over lists
+
+(define (square x)
+  (* x x))
+
+(define (square-list items)
+  (if (null? items)
+    nil
+    (cons (square (car items)) (square-list (cdr items)))))
+
+(define (square-list items)
+  (map square items))
+
+; 2.23 -- For-each
+
+(define (for-each proc items)
+  (cond ((null? items) #t) ;Return val is arbitrary
+        (else (proc (car items))
+         (for-each proc (cdr items)))))
+
+(for-each (lambda (x) (newline) (display x))
+          (list 1 2 3))
+
+; 2.27 -- Deep-reverse
+
+; Better reverse to start from
+; Note fixed (cdr l)
+(define (reverse l)
+  (if (null? l)
+    nil
+    (append (reverse (cdr l)) (list (car l)))))
+
+; This works infinitely deep, but flattens
+; ((1 2) (3 4)) => (4 3 2 1)
+(define (deep-reverse l)
+  (cond ((null? l) nil)
+        ((not (pair? l)) (list l))
+        (else (append (deep-reverse (cdr l))
+                      (deep-reverse (car l))))))
+
+; This works properly
+; Recursively mapping down is a sweet trick
+(define (deep-reverse l)
+  (if (not (pair? l))
+    l
+    (reverse (map deep-reverse l))))
+
+; Test
+(deep-reverse (list (list 1 2) (list 3 4)))
+
+; Does it work several levels down?
+(deep-reverse (list (list 1 2) (list 3 (list 4 5))))
+
+; 2.28 --Fringe (flatten)
+
+(define (fringe tree)
+  (cond ((null? tree) nil)
+        ((not (pair? tree)) (list tree))
+        (else (append (fringe (car tree)) (fringe (cdr tree))))))
+
+; Test
+(fringe (list (list 1 2) (list 3 (list 4 5))))
+
+; 2.29 -- Binary trees
+
+(define (make-mobile left right)
+  (list left right))
+(define (make-branch length structure)
+  (list length structure))
+
+; a) Selectors
+(define left-branch car)
+(define (right-branch mobile)
+  (car (cdr mobile)))
+
+(define branch-length car)
+(define (branch-structure branch)
+  (car (cdr branch)))
+
+; b) Total weight
+
+(define (total-weight branch)
+  (if (not (pair? (branch-structure branch)))
+    branch
+    (let ((sub-mobile (branch-structure (branch-structure branch))))
+      (total-weight (left-branch sub-mobile)))))
+
+; Use a wrapper fn to account for the different structure (no length) at the
+; global root
+(define (total-weight mobile)
+  (define (branch-weight branch)
+    (let ((sub (branch-structure branch)))
+      (if (not (pair? sub))
+        sub
+        (+ (branch-weight (left-branch sub))
+           (branch-weight (right-branch sub))))))
+  (+ (branch-weight (left-branch mobile))
+     (branch-weight (right-branch mobile))))
+
+; Paired functions work better
+(define (branch-weight branch) ; Branch domain
+  (if (not (pair? (branch-structure branch)))
+    (branch-structure branch)
+    (total-weight (branch-structure branch))))
+(define (total-weight mobile) ; Mobile domain
+  (+ (branch-weight (left-branch mobile))
+     (branch-weight (right-branch mobile))))
+     
+; Test
+; Not torque balanced
+(define test-mobile
+  (make-mobile (make-branch 1 2)
+               (make-branch 3 (make-mobile
+                                (make-branch 4 5)
+                                (make-branch 6 7)))))
+; c) Torque balance
+
+(define (torque branch)
+  (* (branch-length branch) (branch-weight branch)))
+
+; Let's rock this paired branch/mobile function idea again
+
+(define (branch-balanced branch)
+  (if (not (pair? (branch-structure branch)))
+    #t ; Leaves are balanced by definition
+    (balanced? (branch-structure branch))))
+(define (balanced? mobile)
+  (and (branch-balanced (left-branch mobile))
+       (branch-balanced (right-branch mobile))
+       (= (torque (left-branch mobile))
+          (torque (right-branch mobile)))))
+
+; Test
+; Torque balanced
+(define test-torque
+  (make-mobile (make-branch 10 5)
+               (make-branch 5 (make-mobile
+                                (make-branch 2 5)
+                                (make-branch 2 5)))))
+
